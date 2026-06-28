@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XSS PoC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container { max-width: 800px; width: 100%; }
+    h1 {
+      font-size: 2rem;
+      background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 1.5rem;
+    }
+    .back { color: #6bcbff; text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 1rem; }
+    .card {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #2a2a4a;
+    }
+    .card h2 { font-size: 1.2rem; margin-bottom: 0.75rem; color: #ff6b6b; }
+    .card p, .card label { color: #ccc; font-size: 0.9rem; line-height: 1.5; }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.6rem;
+      background: #0f0f1a;
+      border: 1px solid #3a3a5a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      font-family: 'Courier New', monospace;
+    }
+    button {
+      background: #ff6b6b;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-top: 0.75rem;
+    }
+    button:hover { background: #e05555; }
+    .output {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: #0f0f1a;
+      border-radius: 6px;
+      border: 1px solid #2a2a4a;
+      min-height: 2rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+      color: #ffd93d;
+    }
+    .info {
+      background: #1a2a1a;
+      border: 1px solid #2a4a2a;
+      border-radius: 6px;
+      padding: 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: #8f8;
+    }
+    .info strong { color: #afa; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .tab {
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      background: #2a2a4a;
+      border: 1px solid #3a3a5a;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .tab.active { background: #ff6b6b; color: #fff; border-color: #ff6b6b; }
+    code { background: #2a2a3a; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back">&larr; Back</a>
+    <h1>XSS Proof of Concept</h1>
+
+    <div class="tabs">
+      <button class="tab active" data-target="reflected">Reflected</button>
+      <button class="tab" data-target="dom">DOM-based</button>
+      <button class="tab" data-target="input">Input Reflection</button>
+    </div>
+
+    <!-- Reflected XSS -->
+    <div id="reflected" class="card tab-content">
+      <h2>Reflected XSS via URL Parameter</h2>
+      <p>Pass a payload via the <code>?payload=</code> query parameter. The value is rendered directly into the DOM without sanitization.</p>
+      <div class="info">
+        <strong>Try:</strong> <code>?payload=&lt;img src=x onerror=alert('XSS-Reflected')&gt;</code>
+      </div>
+      <div class="output" id="reflected-output">Waiting for payload...</div>
+    </div>
+
+    <!-- DOM-based XSS -->
+    <div id="dom" class="card tab-content" style="display:none">
+      <h2>DOM-based XSS via URL Fragment</h2>
+      <p>The URL fragment (hash) is read via <code>location.hash</code> and injected into the DOM unsanitized.</p>
+      <div class="info">
+        <strong>Try:</strong> Append <code>#&lt;img src=x onerror=alert('XSS-DOM')&gt;</code> to the URL
+      </div>
+      <div class="output" id="dom-output">Waiting for hash...</div>
+    </div>
+
+    <!-- Input Reflection -->
+    <div id="input" class="card tab-content" style="display:none">
+      <h2>Input Reflection (Unsanitized)</h2>
+      <p>Type payload below and submit. The input is reflected back into the DOM without encoding, simulating a stored/reflected XSS in a comment field.</p>
+      <input type="text" id="xss-input" placeholder='e.g. <img src=x onerror=alert("XSS-Input")>' />
+      <button id="xss-submit">Reflect</button>
+      <div class="output" id="input-output"></div>
+    </div>
+
+    <div class="card" style="border-color: #ff6b6b;">
+      <h2 style="color: #ffd93d;">Usage</h2>
+      <p style="font-size:0.85rem; color:#aaa; line-height:1.6">
+        1. <strong>Reflected:</strong> <code>?payload=&lt;script&gt;alert(1)&lt;/script&gt;</code><br>
+        2. <strong>DOM-based:</strong> <code>#&lt;img src=x onerror=alert(1)&gt;</code><br>
+        3. <strong>Input:</strong> Type raw HTML in the field and click Reflect<br><br>
+        Share the URL with the payload to trigger XSS in the victim's browser.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.target).style.display = 'block';
+      });
+    });
+
+    // 1. Reflected XSS from URL parameter
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const payload = params.get('payload');
+      const output = document.getElementById('reflected-output');
+      if (payload) {
+        // Intentionally vulnerable innerHTML — XSS trigger
+        output.innerHTML = payload;
+      } else {
+        output.textContent = 'No payload parameter found. Add ?payload=&lt;script&gt;alert(1)&lt;/script&gt; to the URL.';
+      }
+    })();
+
+    // 2. DOM-based XSS from URL hash / fragment
+    (function() {
+      const output = document.getElementById('dom-output');
+      const hash = window.location.hash;
+      if (hash && hash.length > 1) {
+        const fragment = decodeURIComponent(hash.substring(1));
+        // Intentionally vulnerable — XSS trigger
+        output.innerHTML = fragment;
+      } else {
+        output.textContent = 'No fragment found. Add #<img src=x onerror=alert(1)> to the URL.';
+      }
+    })();
+
+    // 3. Input reflection — unsanitized innerHTML
+    document.getElementById('xss-submit').addEventListener('click', function() {
+      const input = document.getElementById('xss-input').value;
+      const output = document.getElementById('input-output');
+      // Intentionally vulnerable — XSS trigger
+      output.innerHTML = input;
+    });
+
+    // Auto-submit on Enter key
+    document.getElementById('xss-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') document.getElementById('xss-submit').click();
+    });
+  </script>
+</body>
+</html>

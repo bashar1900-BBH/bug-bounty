@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security PoC Playground</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 720px;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: #888;
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+    .cards {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .card {
+      flex: 1;
+      min-width: 260px;
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid #2a2a4a;
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(255, 107, 107, 0.15);
+      border-color: #ff6b6b;
+    }
+    .card h2 {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+    .card .badge {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+    .badge-xss { background: #ff6b6b; color: #fff; }
+    .badge-csrf { background: #6bcbff; color: #000; }
+    .card p {
+      color: #aaa;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .card ul {
+      margin-top: 0.75rem;
+      padding-left: 1.2rem;
+      font-size: 0.85rem;
+      color: #999;
+    }
+    .card ul li { margin-bottom: 0.25rem; }
+    .footer {
+      margin-top: 2rem;
+      color: #555;
+      font-size: 0.8rem;
+    }
+    .footer a { color: #6bcbff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Security PoC Playground</h1>
+    <p class="subtitle">Cross-Site Scripting &amp; Cross-Site Request Forgery demos</p>
+
+    <div class="cards">
+      <a href="xss.html" class="card">
+        <div class="badge badge-xss">XSS</div>
+        <h2>Cross-Site Scripting</h2>
+        <p>Demonstrates Reflected, DOM-based, and stored XSS attack vectors.</p>
+        <ul>
+          <li>Reflected XSS via URL parameter</li>
+          <li>DOM-based XSS via hash/fragment</li>
+          <li>Input reflection without sanitization</li>
+        </ul>
+      </a>
+
+      <a href="csrf.html" class="card">
+        <div class="badge badge-csrf">CSRF</div>
+        <h2>Cross-Site Request Forgery</h2>
+        <p>Demonstrates GET and POST request forgery techniques.</p>
+        <ul>
+          <li>GET CSRF via img/script tags</li>
+          <li>POST CSRF via auto-submitting form</li>
+          <li>Configurable target endpoint</li>
+        </ul>
+      </a>
+    </div>
+
+    <p class="footer">
+      Hosted on <a href="https://pages.github.com" target="_blank">GitHub Pages</a> &mdash; For educational/authorized testing only.
+    </p>
+  </div>
+</body>
+</html>
